@@ -1,4 +1,5 @@
 use std::{
+    cmp::{max, min},
     fs::File,
     io::{BufRead, BufReader, Lines},
 };
@@ -14,11 +15,11 @@ fn solve() {
     for line in input {
         if let Ok(text) = line {
             let pair = Pair::parse(&text);
-            count += pair.fully_contained() as i32;
+            count += pair.overlapped() as i32;
         }
     }
 
-    println!("The number of fully contained assignments is: {}", count);
+    println!("The number of overlapped assignments is: {}", count);
 }
 
 struct Pair {
@@ -35,16 +36,16 @@ impl Pair {
         Pair { first, second }
     }
 
-    fn fully_contained(&self) -> bool {
-        let diff = self.first.diff(&self.second);
-        let sum = diff.start - diff.end;
+    /// Are the assignments overlapped
+    fn overlapped(&self) -> bool {
+        let union = Range {
+            start: min(self.first.start, self.second.start),
+            end: max(self.first.end, self.second.end),
+        };
+        let total = union.size();
+        let sum = self.first.size() + self.second.size();
 
-        diff.start.abs() + diff.end.abs() == sum.abs()
-    }
-
-    /// Are the assignments verlapped
-    fn overlapped() -> bool {
-
+        total <= sum
     }
 }
 
@@ -70,6 +71,10 @@ impl Range {
             start: start_diff,
             end: end_diff,
         }
+    }
+
+    fn size(&self) -> isize {
+      self.end - self.start
     }
 }
 
