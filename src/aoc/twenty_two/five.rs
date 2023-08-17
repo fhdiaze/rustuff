@@ -1,7 +1,8 @@
 use std::fs::File;
 use std::io::{BufReader, BufRead, Lines};
+use relative_path::RelativePath;
 
-fn main() {
+pub fn main() {
   solve();
 }
 
@@ -10,18 +11,32 @@ fn solve() {
 
   for l in input {
     if let Ok(text) = l {
-      println!("{}", text);
+      parser::parse_line(&text);
     }
   }
 }
 
+
 mod parser {
+  use regex::Regex;
+
   pub fn parse() {
 
   }
 
+  enum Token {
+    Mark(char),
+    Blank,
+    Splitter
+  }
+
   pub fn parse_line(text: &str) {
-    let re = Regex::new(r" *\[.\] *");
+    println!("Line={}", text);
+    let re = Regex::new(r"(?<b> {3})|\[(?<m>.)\]|(?<s> )").unwrap();
+    for m in re.find_iter(text) {
+
+      println!("m={:?}", m.as_str());
+    }
   }
 }
 
@@ -52,7 +67,8 @@ struct Step {
 }
 
 fn read_input() -> Lines<BufReader<File>> {
-  let file = File::open("five.txt").unwrap();
+  let relative = RelativePath::new("./src/aoc/twenty_two/five.txt");
+  let file = File::open(relative.to_path("./")).unwrap();
   let buf = BufReader::new(file);
 
   buf.lines()
