@@ -155,13 +155,7 @@ impl Stack {
   }
 
   fn pop(&mut self, quantity: usize) -> Vec<char> {
-    let mut marks = Vec::with_capacity(quantity);
-
-    for _ in 0 .. quantity {
-      marks.push(self.marks.pop().unwrap());
-    }
-
-    marks
+    self.marks.split_off(self.marks.len()-quantity)
   }
 
   fn top(&self) -> char {
@@ -176,3 +170,4 @@ fn read_input() -> Lines<BufReader<File>> {
 
   buf.lines()
 }
+
