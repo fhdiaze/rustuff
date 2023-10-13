@@ -1,7 +1,6 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader, Lines},
-    str::CharIndices,
 };
 
 pub fn main() {
@@ -12,100 +11,94 @@ fn solve() {
     let input = read_input();
 
     for line in input.flatten() {
-        let token = parse_line(line);
+        let token = parser::parse(line);
+        println!("{:?}", token);
     }
 }
 
-// Grammar: https://bnfplayground.pauliankline.com/
-// <exp> ::= <cmd> | <out>
-// <cmd> ::= "$ " (<cd> | <ls>)
-// <cd> ::= "cd " <name>
-// <ls> ::= "ls"
-// <out> ::= "dir " <name> | <number> " " <file>
-// <file> ::= <name> ("." <name>)?
-// <number> ::= [0-9]+
-// <name> ::= [a-z]+
-struct Parser {}
+/// Grammar: https://bnfplayground.pauliankline.com/
+/// <exp> ::= <cmd> | <out>
+/// <cmd> ::= "$ " (<cd> | <ls>)
+/// <cd> ::= "cd " <name>
+/// <ls> ::= "ls"
+/// <out> ::= <dir> | <file>
+/// <dir> ::= "dir " <name>
+/// <file> ::= <number> " " <fname>
+/// <fname> ::= <name> ("." <name>)?
+/// <number> ::= [0-9]+
+/// <name> ::= [a-z]+
+mod parser {
+    use std::{iter::Peekable, str::Chars};
 
-impl Parser {
-    fn parse(text: String) -> Option<Expression> {
-        Some(Expression::Cmd(Command::Ls))
+    #[derive(Debug)]
+    pub enum Expression {
+        Cmd(Command),
+        Out(Output),
     }
 
-    fn exp(&self) -> Option<Expression> {
-        Some(Expression::Cmd(Command::Ls))
+    #[derive(Debug)]
+    pub enum Command {
+        Ls,
+        Cd { path: String },
     }
 
-    fn cmd(&self) -> Option<Command> {
-        Some(Command::Ls)
-    }
-}
-
-enum Expression {
-    Cmd(Command),
-    Out(Output),
-}
-
-enum Command {
-    Ls,
-    Cd { path: String },
-}
-
-enum Output {
-    File { name: String, size: usize },
-    Dir { name: String },
-}
-
-#[derive(Debug)]
-enum Token {
-    Dollar,
-    Cd,
-    Ls,
-    Size(usize),
-    Dir,
-    Name(String),
-}
-
-struct Tokenizer<'a> {
-    cursor: usize,
-    chars: CharIndices<'a>,
-}
-
-impl Tokenizer<'a> {
-    fn new(input: String) -> Self {
-        Tokenizer {
-            cursor: 0,
-            chars: input.char_indices(),
-        }
+    #[derive(Debug)]
+    pub enum Output {
+        File { name: String, size: usize },
+        Dir { name: String },
     }
 
-    fn next(&self) -> Option<Token> {
-        while let Some((pos, ch)) = self.chars.next() {
-            match ch {
-                '$' => {
-                    return Some(Token::Dollar);
-                }
-                'c' => {
-                    return Some(Token::Cd);
-                }
-                'l' => {
-                    return Some(Token::Ls);
-                }
-                's' => {
-                    return Some(Token::Size(parse_size()));
-                }
-                'd' => {
-                    cursor += 1;
-                    return Some(Token::Dir);
-                }
-                _ => {
-                    cursor += 1;
-                    return Some(Token::Name(parse_name()));
-                }
-            }
-        }
+    pub fn parse(text: String) -> Option<Expression> {
+        let mut chars = text.chars().peekable();
 
-        None
+        exp(&mut chars)
+    }
+
+    fn exp(scanner: &mut Peekable<Chars>) -> Option<Expression> {
+        cmd(scanner)
+            .map(Expression::Cmd)
+            .or(out(scanner).map(Expression::Out))
+    }
+
+    fn cmd(scanner: &mut Peekable<Chars>) -> Option<Command> {
+        scanner
+            .next_if_eq(&'$')
+            .and_then(|_| scanner.next_if_eq(&' '))
+            .and_then(|_| cd(scanner))
+            .or(ls(scanner))
+    }
+
+    fn ls(scanner: &mut Peekable<Chars>) -> Option<Command> {
+        scanner
+            .next_if_eq(&'l')
+            .and_then(|_| scanner.next_if_eq(&'s'))
+            .map(|_| Command::Ls)
+    }
+
+    fn cd(scanner: &mut Peekable<Chars>) -> Option<Command> {
+        scanner
+            .next_if_eq(&'c')
+            .and_then(|_| scanner.next_if_eq(&'d'))
+            .and_then(|_| scanner.next_if_eq(&' '))
+            .map(|_| scanner.by_ref().take_while(|x| x.ne(&' ')).collect())
+            .map(|path: String| Command::Cd { path })
+    }
+
+    fn out(scanner: &Peekable<Chars>) -> Option<Output> {
+        dir(scanner).or(file(scanner))
+    }
+
+    fn dir(scanner: &Peekable<Chars>) -> Option<Output> {
+        Some(Output::Dir {
+            name: String::from(""),
+        })
+    }
+
+    fn file(scanner: &Peekable<Chars>) -> Option<Output> {
+        Some(Output::File {
+            name: String::from(""),
+            size: 0,
+        })
     }
 }
 
