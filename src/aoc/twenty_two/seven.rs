@@ -13,79 +13,109 @@ pub fn main() {
 
 fn solve() {
     let input = read_input();
+    let mut fs = FileSystem::new();
 
     for line in input.flatten() {
         let expression = parser::parse(line).unwrap();
-        println!("{:?}", expression);
         match expression {
-            Expression::Cmd(cmd) => match cmd {
-                Command::Ls => println!("ls"),
-                Command::Cd { path } => println!("cd {}", path),
-            },
-            Expression::Out(out) => match out {
-                Output::Dir { name } => println!("out"),
-                Output::File { name, size } => println!("out"),
-            },
+            Expression::Cmd(cmd) => {
+                if let Command::Cd { name } = cmd {
+                    fs.cd(&name);
+                }
+            }
+            Expression::Out(out) => {
+                _ = match out {
+                    Output::Dir { name } => fs.add_child(Item::Directory(Directory::new(name))),
+                    Output::File { name, size } => fs.add_child(Item::File(File { name, size })),
+                }
+            }
+        }
+    }
+
+    println!("{:?}", fs);
+}
+
+#[derive(Debug)]
+struct FileSystem {
+    pwd: Rc<RefCell<Item>>,
+    parent: Rc<RefCell<Item>>,
+    root: Rc<RefCell<Item>>,
+}
+
+impl FileSystem {
+    fn new() -> FileSystem {
+        let root = Rc::new(RefCell::new(Item::Directory(Directory::new(
+            "/".to_string(),
+        ))));
+
+        FileSystem {
+            pwd: root.clone(),
+            parent: root.clone(),
+            root,
+        }
+    }
+
+    fn get_child(&self, name: &str) -> Option<Rc<RefCell<Item>>> {
+        self.pwd.borrow().get_child(name)
+    }
+
+    fn add_child(&mut self, item: Item) -> Rc<RefCell<Item>> {
+        self.pwd.borrow_mut().add_child(item)
+    }
+
+    fn cd(&mut self, name: &str) {
+        let new_pwd = match name {
+            "/" => Some(self.root.clone()),
+            ".." => Some(self.parent.clone()),
+            _ => self.get_child(name),
+        };
+        match new_pwd {
+            Some(dir) => {
+                self.parent = self.pwd.clone();
+                self.pwd = dir;
+            }
+            None => panic!("No such file or directory"),
         }
     }
 }
 
-struct FileSystem {
-    pwd: Option<Rc<RefCell<Directory>>>,
-    root: Option<Rc<RefCell<Directory>>>,
-}
-
+#[derive(Debug)]
 enum Item {
     File(File),
     Directory(Directory),
 }
 
-struct Directory {
-    name: String,
-    children: Vec<Rc<RefCell<Item>>>,
-}
-
-struct File {
-    name: String,
-    size: usize,
-}
-
-impl FileSystem {
-    fn new() -> FileSystem {
-        FileSystem {
-            root: None,
-            pwd: None,
+impl Item {
+    fn name(&self) -> &str {
+        match self {
+            Item::File(f) => &f.name,
+            Item::Directory(d) => &d.name,
         }
     }
 
     fn get_child(&self, name: &str) -> Option<Rc<RefCell<Item>>> {
-        self.pwd.and_then(|x| {
-            x.borrow()
+        match self {
+            Item::File(_) => None,
+            Item::Directory(d) => d
                 .children
                 .iter()
-                .find(|i| match *i.borrow() {
-                    Item::Directory(d) => d.name == name,
-                    Item::File(f) => f.name == name,
-                })
-                .map(|&i| i.clone())
-        })
+                .find(|i| i.borrow().name() == name)
+                .cloned(),
+        }
     }
 
     fn add_child(&mut self, item: Item) -> Rc<RefCell<Item>> {
-        self.pwd.take().unwrap().borrow_mut().add_child(item)
+        match self {
+            Item::File(_) => panic!("Cannot add child to file"),
+            Item::Directory(d) => d.add_child(item),
+        }
     }
+}
 
-    fn cd(&mut self, name: &str) {
-        let child = match self.get_child(name) {
-            Some(c) => c,
-            None => {
-                let c = Item::Directory(Directory::new(name.to_string()));
-                self.add_child(c)
-            }
-        };
-
-        self.pwd = Some(child);
-    }
+#[derive(Debug)]
+struct Directory {
+    name: String,
+    children: Vec<Rc<RefCell<Item>>>,
 }
 
 impl Directory {
@@ -98,10 +128,16 @@ impl Directory {
 
     fn add_child(&mut self, item: Item) -> Rc<RefCell<Item>> {
         let item = Rc::new(RefCell::new(item));
-        self.children.push(item);
+        self.children.push(item.clone());
 
-        item.clone()
+        item
     }
+}
+
+#[derive(Debug)]
+struct File {
+    name: String,
+    size: usize,
 }
 
 /// Grammar: https://bnfplayground.pauliankline.com/
@@ -127,7 +163,7 @@ mod parser {
     #[derive(Debug)]
     pub enum Command {
         Ls,
-        Cd { path: String },
+        Cd { name: String },
     }
 
     #[derive(Debug)]
@@ -169,7 +205,7 @@ mod parser {
             .and_then(|_| scanner.next_if_eq(&'d'))
             .and_then(|_| scanner.next_if_eq(&' '))
             .map(|_| scanner.by_ref().take_while(|x| x.ne(&' ')).collect())
-            .map(|path: String| Command::Cd { path })
+            .map(|path: String| Command::Cd { name: path })
     }
 
     fn out(scanner: &mut Peekable<Chars>) -> Option<Output> {
