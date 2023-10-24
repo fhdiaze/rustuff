@@ -25,7 +25,9 @@ fn solve() {
             }
             Expression::Out(out) => {
                 _ = match out {
-                    Output::Dir { name } => fs.add_child(Item::Directory(Directory::new(name))),
+                    Output::Dir { name } => {
+                        fs.add_child(Item::Directory(Directory::new(name, Some(fs.get_pwd()))))
+                    }
                     Output::File { name, size } => fs.add_child(Item::File(File { name, size })),
                 }
             }
@@ -38,7 +40,6 @@ fn solve() {
 #[derive(Debug)]
 struct FileSystem {
     pwd: Rc<RefCell<Item>>,
-    parent: Rc<RefCell<Item>>,
     root: Rc<RefCell<Item>>,
 }
 
@@ -46,13 +47,17 @@ impl FileSystem {
     fn new() -> FileSystem {
         let root = Rc::new(RefCell::new(Item::Directory(Directory::new(
             "/".to_string(),
+            None,
         ))));
 
         FileSystem {
             pwd: root.clone(),
-            parent: root.clone(),
             root,
         }
+    }
+
+    fn get_pwd(&self) -> Rc<RefCell<Item>> {
+        self.pwd.clone()
     }
 
     fn get_child(&self, name: &str) -> Option<Rc<RefCell<Item>>> {
@@ -66,12 +71,11 @@ impl FileSystem {
     fn cd(&mut self, name: &str) {
         let new_pwd = match name {
             "/" => Some(self.root.clone()),
-            ".." => Some(self.parent.clone()),
+            ".." => self.pwd.borrow().get_parent(),
             _ => self.get_child(name),
         };
         match new_pwd {
             Some(dir) => {
-                self.parent = self.pwd.clone();
                 self.pwd = dir;
             }
             None => panic!("No such file or directory"),
@@ -95,12 +99,8 @@ impl Item {
 
     fn get_child(&self, name: &str) -> Option<Rc<RefCell<Item>>> {
         match self {
-            Item::File(_) => None,
-            Item::Directory(d) => d
-                .children
-                .iter()
-                .find(|i| i.borrow().name() == name)
-                .cloned(),
+            Item::File(_) => panic!("Cannot get a child from a file"),
+            Item::Directory(d) => d.get_child(name),
         }
     }
 
@@ -110,19 +110,28 @@ impl Item {
             Item::Directory(d) => d.add_child(item),
         }
     }
+
+    fn get_parent(&self) -> Option<Rc<RefCell<Item>>> {
+        match self {
+            Item::File(_) => panic!("Cannot get a child from a file"),
+            Item::Directory(d) => d.get_parent(),
+        }
+    }
 }
 
 #[derive(Debug)]
 struct Directory {
     name: String,
     children: Vec<Rc<RefCell<Item>>>,
+    parent: Option<Rc<RefCell<Item>>>,
 }
 
 impl Directory {
-    fn new(name: String) -> Directory {
+    fn new(name: String, parent: Option<Rc<RefCell<Item>>>) -> Directory {
         Directory {
             name,
             children: Vec::new(),
+            parent,
         }
     }
 
@@ -131,6 +140,17 @@ impl Directory {
         self.children.push(item.clone());
 
         item
+    }
+
+    fn get_child(&self, name: &str) -> Option<Rc<RefCell<Item>>> {
+        self.children
+            .iter()
+            .find(|i| i.borrow().name() == name)
+            .cloned()
+    }
+
+    fn get_parent(&self) -> Option<Rc<RefCell<Item>>> {
+        self.parent.clone()
     }
 }
 
