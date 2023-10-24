@@ -119,7 +119,6 @@ impl Item {
     }
 }
 
-#[derive(Debug)]
 struct Directory {
     name: String,
     children: Vec<Rc<RefCell<Item>>>,
@@ -151,6 +150,15 @@ impl Directory {
 
     fn get_parent(&self) -> Option<Rc<RefCell<Item>>> {
         self.parent.clone()
+    }
+}
+
+impl std::fmt::Debug for Directory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Directory")
+            .field("name", &self.name)
+            .field("children", &self.children)
+            .finish()
     }
 }
 
