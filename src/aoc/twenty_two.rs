@@ -4,6 +4,7 @@ pub mod four;
 pub mod four_plus;
 pub mod one;
 pub mod seven;
+pub mod seven_plus;
 pub mod six;
 pub mod six_plus;
 pub mod three;
