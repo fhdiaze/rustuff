@@ -34,7 +34,10 @@ fn solve() {
         }
     }
 
-    println!("{:?}", fs);
+    let mut visitor = Visitor::new();
+    fs.accept(&mut visitor);
+
+    println!("{:?}", visitor.total_size);
 }
 
 #[derive(Debug)]
@@ -81,6 +84,30 @@ impl FileSystem {
             None => panic!("No such file or directory"),
         }
     }
+
+    fn accept(&mut self, visitor: &mut Visitor) {
+        self.root.borrow().accept(visitor);
+    }
+}
+
+struct Visitor {
+    total_size: usize,
+}
+
+impl Visitor {
+    fn new() -> Visitor {
+        Visitor { total_size: 0 }
+    }
+
+    fn visit(&mut self, item: &Item) {
+        if let Item::Directory(_) = item {
+            let size = item.size();
+
+            if size < 100000 {
+                self.total_size += size;
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -117,6 +144,21 @@ impl Item {
             Item::Directory(d) => d.get_parent(),
         }
     }
+
+    fn size(&self) -> usize {
+        match self {
+            Item::File(f) => f.size,
+            Item::Directory(d) => d.size(),
+        }
+    }
+
+    fn accept(&self, visitor: &mut Visitor) {
+        visitor.visit(self);
+
+        if let Item::Directory(d) = self {
+            d.accept(visitor);
+        }
+    }
 }
 
 struct Directory {
@@ -150,6 +192,16 @@ impl Directory {
 
     fn get_parent(&self) -> Option<Rc<RefCell<Item>>> {
         self.parent.clone()
+    }
+
+    fn size(&self) -> usize {
+        self.children.iter().map(|i| i.borrow().size()).sum()
+    }
+
+    fn accept(&self, visitor: &mut Visitor) {
+        self.children
+            .iter()
+            .for_each(|i| i.borrow().accept(visitor));
     }
 }
 
