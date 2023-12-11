@@ -69,7 +69,7 @@ fn mbsd(scanner: &mut Peekable<Chars>) -> Option<u8> {
 
 fn so(scanner: &mut Peekable<Chars>) -> Option<u8> {
     if scanner.next_if_eq(&'n').is_some() {
-        if scanner.next_if_eq(&'e').is_some() {
+        if scanner.peek() == Some(&'e') {
             return Some(1);
         } else {
             return sn(scanner);
@@ -81,7 +81,7 @@ fn so(scanner: &mut Peekable<Chars>) -> Option<u8> {
 
 fn st(scanner: &mut Peekable<Chars>) -> Option<u8> {
     if scanner.next_if_eq(&'w').is_some() {
-        if scanner.next_if_eq(&'o').is_some() {
+        if scanner.peek() == Some(&'o') {
             return Some(2);
         } else {
             return sn(scanner);
@@ -90,7 +90,7 @@ fn st(scanner: &mut Peekable<Chars>) -> Option<u8> {
         && scanner.next_if_eq(&'r').is_some()
         && scanner.next_if_eq(&'e').is_some()
     {
-        if scanner.next_if_eq(&'e').is_some() {
+        if scanner.peek() == Some(&'e') {
             return Some(3);
         } else {
             return se(scanner);
@@ -109,7 +109,7 @@ fn sf(scanner: &mut Peekable<Chars>) -> Option<u8> {
         }
     } else if scanner.next_if_eq(&'i').is_some()
         && scanner.next_if_eq(&'v').is_some()
-        && scanner.next_if_eq(&'e').is_some()
+        && scanner.peek() == Some(&'e')
     {
         return Some(5);
     };
@@ -123,7 +123,7 @@ fn ss(scanner: &mut Peekable<Chars>) -> Option<u8> {
     } else if scanner.next_if_eq(&'e').is_some() {
         if scanner.next_if_eq(&'v').is_some() {
             if scanner.next_if_eq(&'e').is_some() {
-                if scanner.next_if_eq(&'n').is_some() {
+                if scanner.peek() == Some(&'n') {
                     return Some(7);
                 } else {
                     return se(scanner);
@@ -142,13 +142,14 @@ fn se(scanner: &mut Peekable<Chars>) -> Option<u8> {
         .next_if_eq(&'i')
         .and_then(|_| scanner.next_if_eq(&'g'))
         .and_then(|_| scanner.next_if_eq(&'h'))
-        .and_then(|_| scanner.next_if_eq(&'t'))
+        .and_then(|_| scanner.peek())
+        .filter(|c| c == &&'t')
         .map(|_| 8)
 }
 
 fn sn(scanner: &mut Peekable<Chars>) -> Option<u8> {
     if scanner.next_if_eq(&'i').is_some() && scanner.next_if_eq(&'n').is_some() {
-        if scanner.next_if_eq(&'e').is_some() {
+        if scanner.peek() == Some(&'e') {
             return Some(9);
         } else {
             return sn(scanner);
